@@ -6,13 +6,15 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 json() { python3 -c "import json,sys;d=json.load(sys.stdin);print($1)"; }
 
-session=$(rex new rex-history-test --json | json 'd["session_id"]')
+# The pane prints its own output, then idles: no typing into a shell that may
+# not be ready yet.
+session=$(rex new rex-history-test --json -- sh -c 'seq -f "REXHIST-%04g" 1 3000; exec sleep 600' | json 'd["session_id"]')
 trap 'rex kill "$session" >/dev/null 2>&1 || true' EXIT
 block=$(rex session inspect "$session" --json | json 'd["windows"][0]["focused_block_id"]')
-sleep 1.5
-rex send -s "$session" -b "$block" 'seq -f "REXHIST-%04g" 1 3000'
-rex send-key -s "$session" -b "$block" enter
-sleep 1.5
+for _ in $(seq 1 40); do
+  rex capture -s "$session" -b "$block" | grep -q 'REXHIST-3000' && break
+  sleep 0.25
+done
 
 rex do -s "$session" -b "$block" "$here/fixture.lua" --action history_view >/dev/null
 layer=""
@@ -24,8 +26,12 @@ done
 [ -n "$layer" ] || { echo "FAIL: no history layer"; exit 1; }
 
 rex send -s "$session" -b "$layer" 'gg'
-sleep 0.5
-rex capture -s "$session" -b "$layer" | grep -q 'REXHIST-0001' || { echo "FAIL: first scrollback line missing"; exit 1; }
+top=no
+for _ in $(seq 1 8); do
+  sleep 0.25
+  if rex capture -s "$session" -b "$layer" | grep -q 'REXHIST-0001'; then top=yes; break; fi
+done
+[ "$top" = yes ] || { echo "FAIL: first scrollback line missing"; rex capture -s "$session" -b "$layer" | grep -v '^[[:space:]]*$' | tail -5; exit 1; }
 rex send -s "$session" -b "$layer" 'q'
 sleep 1
 layers=$(rex session inspect "$session" --json | json 'sum(len(w.get("layers",[])) for w in d["windows"])')
