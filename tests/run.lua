@@ -184,6 +184,10 @@ do -- The real viewer: ]] / [[ through its buffer-local mappings.
   vim.fn.mkdir(tmp .. "/claude/projects/-view", "p")
   vim.uv.fs_copyfile(fixtures .. "claude.jsonl", tmp .. "/claude/projects/-view/sess-view.jsonl")
   vim.g.rex_history = { name = "claude", pid = 4343, cwd = "/view" }
+  -- Collect the viewer's notifications instead of printing them.
+  local notes = {}
+  vim.notify = function(msg, level) notes[#notes + 1] = { msg = msg, level = level } end
+  local function last_note() return notes[#notes] or { msg = "" } end
   dofile(root .. "view.lua")
   local turns = T.render("claude", fixtures .. "claude.jsonl").turns
   local function cursor() return vim.api.nvim_win_get_cursor(0)[1] end
@@ -242,6 +246,8 @@ do -- The real viewer: ]] / [[ through its buffer-local mappings.
   local topline, lines_before = vim.fn.line("w0"), vim.api.nvim_buf_line_count(0)
   append(record(4, "TURN-4 claude"))
   press("R")
+  check("R reports the lines it added", last_note().msg:match("^history: reloaded, %+%d+ lines$") ~= nil
+    and last_note().msg ~= "history: reloaded, +0 lines", last_note().msg)
   check("R shows appended content", buffer_text():find("TURN-4 claude", 1, true) ~= nil)
   check("R grows the buffer", vim.api.nvim_buf_line_count(0) > lines_before)
   check("R keeps the cursor line", cursor() == turns[2], tostring(cursor()))
@@ -288,6 +294,8 @@ do -- The real viewer: ]] / [[ through its buffer-local mappings.
   os.remove(session)
   press("R")
   check("R keeps the view when the transcript is gone", vim.api.nvim_buf_line_count(0) == kept)
+  check("R warns when it can't re-read", last_note().msg:find("kept the previous view", 1, true) ~= nil
+    and last_note().level == vim.log.levels.WARN, last_note().msg)
   check("R is buffer-local", buffer_map("n", "R"))
 
   vim.cmd("enew")
