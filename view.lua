@@ -94,6 +94,51 @@ if agent then
   map("n", "]]", jump(1), "Next turn")
   map("n", "[[", jump(-1), "Previous turn")
 end
+
+-- R: re-read the transcript (or scrollback) in place. Records are appended
+-- while an agent works, so earlier lines keep their numbers: the cursor, the
+-- scroll position and the folds you opened stay where they were.
+local function open_folds()
+  local open = {}
+  if not agent then return open end
+  for line, level in ipairs(doc.folds) do
+    if level > 0 and (doc.folds[line - 1] or 0) == 0 and vim.fn.foldclosed(line) == -1 then
+      open[#open + 1] = line
+    end
+  end
+  return open
+end
+
+local function reload()
+  local ok, fresh, fresh_agent, fresh_path = pcall(load)
+  -- A transcript that can't be read right now (or a fallback to scrollback)
+  -- keeps the current view rather than switching modes under the cursor.
+  if not ok or fresh_agent ~= agent then
+    vim.notify("history: could not re-read; kept the previous view" .. (ok and "" or (": " .. tostring(fresh))),
+      vim.log.levels.WARN)
+    return
+  end
+  local view = vim.fn.winsaveview()
+  local open = open_folds()
+  local added = #fresh.lines - #doc.lines
+  doc, path = fresh, fresh_path
+  vim.bo[buf].modifiable = true
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, doc.lines)
+  vim.bo[buf].modifiable = false
+  vim.bo[buf].modified = false
+  if agent then
+    vim.cmd("normal! zx") -- recompute folds from the new levels
+    for _, line in ipairs(open) do
+      if (doc.folds[line] or 0) > 0 and vim.fn.foldclosed(line) ~= -1 then vim.cmd(line .. "foldopen") end
+    end
+  end
+  local last = vim.api.nvim_buf_line_count(buf)
+  view.lnum = math.min(view.lnum, last)
+  view.topline = math.min(view.topline, view.lnum)
+  vim.fn.winrestview(view)
+  vim.notify(("history: reloaded, %+d lines"):format(added))
+end
+map("n", "R", reload, "Reload")
 -- Visual Enter: copy the selection to the system clipboard and close.
 map("x", "<CR>", function()
   vim.cmd('normal! "+y')

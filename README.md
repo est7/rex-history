@@ -9,7 +9,7 @@ A small Rex extension: one Rex action (`history_view`), bound to `Cmd+Shift+C`, 
 - **In an agent pane:** the agent's conversation rendered as Markdown. Your messages and the agent's replies are open. Tool calls (`### ▸ Bash`), tool results (`### ◂ Bash`) and thinking start folded.
 - **In any other pane** (a shell, a log tail, a REPL): the pane's scrollback. Lines the terminal soft-wrapped are joined again, so copied text has no stray line breaks.
 
-It is a snapshot: close it and press the key again to see newer output.
+It is a snapshot of the moment you open it; press `R` in the view to pick up newer output.
 
 ## Why
 
@@ -54,11 +54,13 @@ To upgrade, run `brew upgrade rex-history`, then `rex config reload`. To uninsta
 
 1. Focus a pane and press `Cmd+Shift+C`. You can also pick **History View** from the command palette, or run `rex do history_view`.
 2. Read and search it as you would any Neovim buffer. The cursor starts at the end, which is the latest output.
-3. Copy what you need, then close.
+3. If the agent is still working, press `R` to re-read its transcript. New output appears at the end; the cursor, the scroll position and the folds you opened stay where they were. A record the agent is still writing shows up on the next `R`.
+4. Copy what you need, then close.
 
 | Key | Action |
 |---|---|
 | `]]` / `[[` | Next / previous turn (your messages); a count such as `3]]` skips turns |
+| `R` | Reload: re-read the transcript (or scrollback), keeping the cursor and open folds |
 | `za` / `zR` / `zM` | Toggle the fold under the cursor / open all / close all |
 | `/` `n` `N`, `gg` `G`, … | Search and move as usual |
 | `v` / `V`, then `Enter` | Copy the selection to the system clipboard and close |

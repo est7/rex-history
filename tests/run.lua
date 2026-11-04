@@ -217,6 +217,79 @@ do -- The real viewer: ]] / [[ through its buffer-local mappings.
   check("view ]] is buffer-local", buffer_map("n", "]]") and buffer_map("n", "[["))
   check("view keeps q", buffer_map("n", "q"))
   check("view keeps visual Enter", buffer_map("x", "<CR>"))
+
+  -- R on a growing transcript: new content appears, the cursor line, scroll
+  -- position and opened folds stay.
+  local session = tmp .. "/claude/projects/-view/sess-view.jsonl"
+  local function append(text)
+    local file = assert(io.open(session, "ab"))
+    file:write(text)
+    file:close()
+  end
+  local function record(n, text)
+    return vim.json.encode({ type = "user", message = { role = "user", content = text },
+      timestamp = ("2026-01-01T11:%02d:00Z"):format(n % 60) }) .. "\n"
+  end
+  local function buffer_text() return table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n") end
+  local doc = T.render("claude", session)
+  local fold_starts = {}
+  for i = 2, #doc.folds do
+    if doc.folds[i] > 0 and doc.folds[i - 1] == 0 then fold_starts[#fold_starts + 1] = i end
+  end
+  local fold_start, other_fold = fold_starts[1], fold_starts[2]
+  vim.api.nvim_win_set_cursor(0, { turns[2], 0 })
+  vim.cmd(fold_start .. "foldopen")
+  local topline, lines_before = vim.fn.line("w0"), vim.api.nvim_buf_line_count(0)
+  append(record(4, "TURN-4 claude"))
+  press("R")
+  check("R shows appended content", buffer_text():find("TURN-4 claude", 1, true) ~= nil)
+  check("R grows the buffer", vim.api.nvim_buf_line_count(0) > lines_before)
+  check("R keeps the cursor line", cursor() == turns[2], tostring(cursor()))
+  check("R keeps the scroll position", vim.fn.line("w0") == topline)
+  check("R keeps an opened fold open", vim.fn.foldclosed(fold_start) == -1)
+  check("R keeps other folds closed", other_fold and vim.fn.foldclosed(other_fold) ~= -1)
+  vim.api.nvim_win_set_cursor(0, { turns[3], 0 })
+  press("]]")
+  check("]] reaches a turn added by R", vim.api.nvim_buf_get_lines(0, cursor() - 1, cursor(), false)[1]:match("^## User") ~= nil
+    and cursor() > turns[3])
+  check("buffer stays read-only after R", vim.bo.modifiable == false and vim.bo.modified == false)
+
+  -- A record still being written (no newline yet) is skipped, not an error.
+  local count = vim.api.nvim_buf_line_count(0)
+  append('{"type":"user","message":{"role":"user","content":"HALF')
+  press("R")
+  check("R skips a half-written record", vim.api.nvim_buf_line_count(0) == count and not buffer_text():find("HALF", 1, true))
+  append('-WRITTEN"}}\n')
+  press("R")
+  check("R shows the record once complete", buffer_text():find("HALF-WRITTEN", 1, true) ~= nil)
+
+  -- Another process appends while R is pressed repeatedly.
+  local script = ("for i in $(seq 1 300); do printf '%%s\\n' '%s' >> '%s'; done")
+    :format(record(5, "WRITER"):gsub("\n$", ""), session)
+  local writer = vim.system({ "sh", "-c", script })
+  local grew, errors, previous = true, 0, vim.api.nvim_buf_line_count(0)
+  for _ = 1, 40 do
+    local ok = pcall(vim.cmd, "normal R")
+    if not ok then errors = errors + 1 end
+    local now = vim.api.nvim_buf_line_count(0)
+    if now < previous then grew = false end
+    previous = now
+    vim.wait(5)
+  end
+  writer:wait()
+  press("R")
+  check("R during concurrent writes raises no error", errors == 0, errors .. " errors")
+  check("R during concurrent writes never shrinks the view", grew)
+  local _, writes = buffer_text():gsub("WRITER", "")
+  check("R after the writer finishes shows every record", writes == 300, writes .. " of 300")
+
+  -- When the transcript can't be read, R keeps the current view.
+  local kept = vim.api.nvim_buf_line_count(0)
+  os.remove(session)
+  press("R")
+  check("R keeps the view when the transcript is gone", vim.api.nvim_buf_line_count(0) == kept)
+  check("R is buffer-local", buffer_map("n", "R"))
+
   vim.cmd("enew")
   check("no global ]] mapping", vim.fn.maparg("]]", "n") == "" and vim.fn.maparg("[[", "n") == "")
 end
