@@ -63,7 +63,7 @@ end
 
 -- Agent detection ----------------------------------------------------------------
 
-check("detect claude", T.agent({ name = "claude" }) == "codex") -- deliberately wrong: CI must go red
+check("detect claude", T.agent({ name = "claude" }) == "claude")
 check("detect pi via argv0", T.agent({ name = "node", argv0 = "pi" }) == "pi")
 check("ignore shells", T.agent({ name = "fish" }) == nil)
 
