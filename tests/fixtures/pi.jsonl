@@ -5,3 +5,7 @@
 {"type": "message", "id": "b3", "parentId": "i1", "timestamp": "2026-01-01T10:00:03Z", "message": {"role": "assistant", "content": [{"type": "thinking", "thinking": "THINK-PI"}, {"type": "toolCall", "id": "tc1", "name": "bash", "arguments": {"command": "grep -n bug src"}}]}}
 {"type": "message", "id": "b4", "parentId": "b3", "timestamp": "2026-01-01T10:00:04Z", "message": {"role": "toolResult", "toolCallId": "tc1", "toolName": "bash", "content": [{"type": "text", "text": "src/a.ts:3: bug"}]}}
 {"type": "message", "id": "b5", "parentId": "b4", "timestamp": "2026-01-01T10:00:05Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "Fixed: pi-final"}]}}
+{"type": "message", "id": "c1", "parentId": "b5", "timestamp": "2026-01-01T10:01:01Z", "message": {"role": "user", "content": [{"type": "text", "text": "TURN-2 pi"}]}}
+{"type": "message", "id": "c2", "parentId": "c1", "timestamp": "2026-01-01T10:01:02Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "reply 2"}]}}
+{"type": "message", "id": "c3", "parentId": "c2", "timestamp": "2026-01-01T10:01:03Z", "message": {"role": "user", "content": [{"type": "text", "text": "TURN-3 pi"}]}}
+{"type": "message", "id": "c4", "parentId": "c3", "timestamp": "2026-01-01T10:01:04Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "reply 3"}]}}

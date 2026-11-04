@@ -9,3 +9,7 @@
 {"type": "system", "subtype": "compact_boundary"}
 {"type": "assistant", "message": {"id": "m2", "role": "assistant", "content": [{"type": "mystery_block", "x": 1}]}, "timestamp": "2026-01-01T10:00:05Z"}
 {"type": "assistant", "message": {"id": "m3", "role": "assistant", "content": [{"type": "text", "text": "Done: claude-final"}]}, "timestamp": "2026-01-01T10:00:06Z"}
+{"type": "user", "message": {"role": "user", "content": "TURN-2 claude"}, "timestamp": "2026-01-01T10:01:01Z"}
+{"type": "assistant", "message": {"id": "m4", "role": "assistant", "content": [{"type": "text", "text": "A literal heading in a reply:\n## User\nis not a turn."}]}, "timestamp": "2026-01-01T10:01:02Z"}
+{"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": "TURN-3 claude"}]}, "timestamp": "2026-01-01T10:01:03Z"}
+{"type": "assistant", "message": {"id": "m5", "role": "assistant", "content": [{"type": "text", "text": "reply 3"}]}, "timestamp": "2026-01-01T10:01:04Z"}

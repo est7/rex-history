@@ -146,9 +146,11 @@ end
 -- Markdown writer ------------------------------------------------------------
 
 -- Collects lines plus a fold level per line: level 1 inside a folded detail
--- section (tool call, tool result, thinking), 0 elsewhere.
+-- section (tool call, tool result, thinking), 0 elsewhere. turns lists the
+-- line of each "## User" heading, recorded here rather than matched in the
+-- buffer, since an agent's reply can itself contain such a line.
 local function writer()
-  local w = { lines = {}, folds = {}, role = nil }
+  local w = { lines = {}, folds = {}, turns = {}, role = nil }
 
   local function push(line, fold)
     w.lines[#w.lines + 1] = line
@@ -169,6 +171,7 @@ local function writer()
     if w.role == role then return end
     w.role = role
     if #w.lines > 0 and w.lines[#w.lines] ~= "" then push("", 0) end
+    if role == "User" then w.turns[#w.turns + 1] = #w.lines + 1 end
     push("## " .. role .. (stamp and ("  ·  " .. stamp) or ""), 0)
     push("", 0)
   end
@@ -415,7 +418,7 @@ function render.agy(records, w)
   end
 end
 
--- Returns { lines = {...}, folds = {...} } for the transcript at path.
+-- Returns { lines, folds, turns } for the transcript at path.
 function M.render(agent, path)
   local records = {}
   for _, line in ipairs(read_lines(path) or {}) do
@@ -424,7 +427,21 @@ function M.render(agent, path)
   end
   local w = writer()
   render[agent](records, w)
-  return { lines = w.lines, folds = w.folds }
+  return { lines = w.lines, folds = w.folds, turns = w.turns }
+end
+
+-- The turn heading after (direction 1) or before (-1) line lnum, or nil
+-- when there is none in that direction.
+function M.turn_target(turns, lnum, direction)
+  if direction > 0 then
+    for _, line in ipairs(turns) do
+      if line > lnum then return line end
+    end
+  else
+    for i = #turns, 1, -1 do
+      if turns[i] < lnum then return turns[i] end
+    end
+  end
 end
 
 return M

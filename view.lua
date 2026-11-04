@@ -77,6 +77,23 @@ local map = function(mode, lhs, rhs, desc)
   vim.keymap.set(mode, lhs, rhs, { buffer = buf, nowait = true, silent = true, desc = desc })
 end
 map("n", "q", quit, "Close history")
+-- ]] / [[: next / previous user turn; stays put at the last / first one.
+if agent then
+  local function jump(direction)
+    return function()
+      local line = vim.api.nvim_win_get_cursor(0)[1]
+      for _ = 1, vim.v.count1 do
+        line = transcripts.turn_target(doc.turns, line, direction) or line
+      end
+      if line ~= vim.api.nvim_win_get_cursor(0)[1] then
+        vim.cmd("normal! m'")
+        vim.api.nvim_win_set_cursor(0, { line, 0 })
+      end
+    end
+  end
+  map("n", "]]", jump(1), "Next turn")
+  map("n", "[[", jump(-1), "Previous turn")
+end
 -- Visual Enter: copy the selection to the system clipboard and close.
 map("x", "<CR>", function()
   vim.cmd('normal! "+y')

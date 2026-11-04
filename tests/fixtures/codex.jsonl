@@ -7,3 +7,7 @@
 {"timestamp": "2026-01-01T10:00:04Z", "type": "response_item", "payload": {"type": "function_call_output", "call_id": "c1", "output": "ok 12 tests"}}
 {"timestamp": "2026-01-01T10:00:04Z", "type": "event_msg", "payload": {"type": "token_count"}}
 {"timestamp": "2026-01-01T10:00:05Z", "type": "response_item", "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "All green: codex-final"}]}}
+{"timestamp": "2026-01-01T10:01:01Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "TURN-2 codex"}], "internal_chat_message_metadata_passthrough": {"content_item_kinds": ["user.text"]}}}
+{"timestamp": "2026-01-01T10:01:02Z", "type": "response_item", "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "reply 2"}]}}
+{"timestamp": "2026-01-01T10:01:03Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "TURN-3 codex"}], "internal_chat_message_metadata_passthrough": {"content_item_kinds": ["user.text"]}}}
+{"timestamp": "2026-01-01T10:01:04Z", "type": "response_item", "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "reply 3"}]}}

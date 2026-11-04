@@ -58,6 +58,7 @@ To upgrade, run `brew upgrade rex-history`, then `rex config reload`. To uninsta
 
 | Key | Action |
 |---|---|
+| `]]` / `[[` | Next / previous turn (your messages); a count such as `3]]` skips turns |
 | `za` / `zR` / `zM` | Toggle the fold under the cursor / open all / close all |
 | `/` `n` `N`, `gg` `G`, … | Search and move as usual |
 | `v` / `V`, then `Enter` | Copy the selection to the system clipboard and close |

@@ -137,6 +137,90 @@ do -- agy: the process's open log names the conversation among its open brain di
   for _, fd in ipairs(fds) do vim.uv.fs_close(fd) end
 end
 
+-- Turn navigation ------------------------------------------------------------------
+
+for _, agent in ipairs({ "claude", "codex", "pi", "agy" }) do
+  local doc = T.render(agent, fixtures .. agent .. ".jsonl")
+  check(agent .. " three turns", #doc.turns == 3, "got " .. #doc.turns)
+  for i, line in ipairs(doc.turns) do
+    check(agent .. " turn " .. i .. " is a User heading", (doc.lines[line] or ""):match("^## User") ~= nil)
+  end
+  -- Each turn's heading is followed by that turn's text.
+  for i, want in ipairs({ expect[agent].user, "TURN-2 " .. agent, "TURN-3 " .. agent }) do
+    local after = table.concat(vim.list_slice(doc.lines, doc.turns[i], (doc.turns[i + 1] or #doc.lines + 1) - 1), "\n")
+    check(agent .. " turn " .. i .. " text", after:find(want, 1, true) ~= nil)
+  end
+  -- Forward from before the first line visits every turn, then stops;
+  -- backward from the end likewise.
+  local line, seen = 0, {}
+  while true do
+    local nxt = T.turn_target(doc.turns, line, 1)
+    if not nxt then break end
+    seen[#seen + 1], line = nxt, nxt
+  end
+  check(agent .. " ]] visits all turns", vim.deep_equal(seen, doc.turns))
+  line, seen = #doc.lines, {}
+  while true do
+    local prev = T.turn_target(doc.turns, line, -1)
+    if not prev then break end
+    table.insert(seen, 1, prev)
+    line = prev
+  end
+  check(agent .. " [[ visits all turns", vim.deep_equal(seen, doc.turns))
+end
+
+do -- A "## User" line inside an agent's reply is not a turn.
+  local doc = T.render("claude", fixtures .. "claude.jsonl")
+  local literal
+  for i, l in ipairs(doc.lines) do
+    if l == "## User" and doc.lines[i - 1] == "A literal heading in a reply:" then literal = i end
+  end
+  check("claude literal heading rendered", literal ~= nil)
+  check("claude literal heading not a turn", literal and not vim.tbl_contains(doc.turns, literal))
+end
+
+do -- The real viewer: ]] / [[ through its buffer-local mappings.
+  write(tmp .. "/claude/sessions/4343.json", '{"pid":4343,"sessionId":"sess-view"}')
+  vim.fn.mkdir(tmp .. "/claude/projects/-view", "p")
+  vim.uv.fs_copyfile(fixtures .. "claude.jsonl", tmp .. "/claude/projects/-view/sess-view.jsonl")
+  vim.g.rex_history = { name = "claude", pid = 4343, cwd = "/view" }
+  dofile(root .. "view.lua")
+  local turns = T.render("claude", fixtures .. "claude.jsonl").turns
+  local function cursor() return vim.api.nvim_win_get_cursor(0)[1] end
+  local function press(keys)
+    local ok, err = pcall(vim.cmd, "normal " .. keys) -- not normal!: use the mappings
+    check("view " .. keys .. " raises no error", ok, err)
+  end
+  vim.api.nvim_win_set_cursor(0, { turns[1], 0 })
+  for i = 2, 3 do
+    press("]]")
+    check("view ]] reaches turn " .. i, cursor() == turns[i], cursor() .. " vs " .. tostring(turns[i]))
+  end
+  press("]]")
+  check("view ]] stays at the last turn", cursor() == turns[3])
+  for i = 2, 1, -1 do
+    press("[[")
+    check("view [[ reaches turn " .. i, cursor() == turns[i])
+  end
+  press("[[")
+  check("view [[ stays at the first turn", cursor() == turns[1])
+  press("2]]")
+  check("view count 2]] skips a turn", cursor() == turns[3])
+  vim.api.nvim_win_set_cursor(0, { vim.api.nvim_buf_line_count(0), 0 })
+  press("[[")
+  check("view [[ from the end reaches the last turn", cursor() == turns[3])
+  -- Buffer-local only, and the existing keys are untouched.
+  local function buffer_map(mode, lhs)
+    local m = vim.fn.maparg(lhs, mode, false, true)
+    return m and m.buffer == 1
+  end
+  check("view ]] is buffer-local", buffer_map("n", "]]") and buffer_map("n", "[["))
+  check("view keeps q", buffer_map("n", "q"))
+  check("view keeps visual Enter", buffer_map("x", "<CR>"))
+  vim.cmd("enew")
+  check("no global ]] mapping", vim.fn.maparg("]]", "n") == "" and vim.fn.maparg("[[", "n") == "")
+end
+
 vim.fn.delete(tmp, "rf")
 print(("%s: %d checks, %d failed"):format(failures == 0 and "PASS" or "FAIL", count, failures))
 os.exit(failures == 0 and 0 or 1)
