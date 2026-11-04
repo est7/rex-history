@@ -1,93 +1,126 @@
 # rex-history
 
-The focused [Rex](https://www.superlogical.com/rex) pane's full history, in a floating Neovim that runs your own config.
+Press `Cmd+Shift+C` in any [Rex](https://www.superlogical.com/rex) pane to read its full history in a floating Neovim that runs your own config. In a Claude Code, Codex, pi or agy pane, the view shows the agent's whole conversation, including what scrolled away long ago.
 
-Full-screen coding agents draw in the terminal's alternate screen, so the terminal keeps only what is on screen now. Scrolling up, `Cmd+F` and `rex capture` never see the earlier conversation. rex-history reads it from the agent's own transcript instead:
+## What it is
 
-| Agent | Transcript it reads | How the pane is matched |
+A small Rex extension: one Rex action (`history_view`), bound to `Cmd+Shift+C`, that opens a floating layer over the current tab. The layer runs your `nvim` on a read-only scratch buffer holding one of these:
+
+- **In an agent pane:** the agent's conversation rendered as Markdown. Your messages and the agent's replies are open. Tool calls (`### ▸ Bash`), tool results (`### ◂ Bash`) and thinking start folded.
+- **In any other pane** (a shell, a log tail, a REPL): the pane's scrollback. Lines the terminal soft-wrapped are joined again, so copied text has no stray line breaks.
+
+It is a snapshot: close it and press the key again to see newer output.
+
+## Why
+
+Full-screen TUI agents draw in the terminal's alternate screen. The terminal then keeps only the current screen. Scrolling up, `Cmd+F` and `rex capture` never see the earlier conversation, and each agent's in-app scrolling and search work differently. Every one of them writes a complete transcript to disk, so rex-history reads that instead. You get one viewer, with the keys you already know, for every agent.
+
+## Which agents
+
+| Agent | Versions tested | Transcript it reads |
 |---|---|---|
-| Claude Code | `~/.claude/projects/*/<session>.jsonl` | `~/.claude/sessions/<pid>.json` names the session |
-| Codex | `~/.codex/sessions/**/rollout-*.jsonl` | thread id in the pane title, else the newest rollout for the pane's cwd |
-| pi | `~/.pi/agent/sessions/<cwd>/*.jsonl` | session name in the pane title, else the newest session for the cwd |
-| agy (Antigravity CLI) | `~/.gemini/antigravity-cli/brain/<id>/…/transcript.jsonl` | the conversation id in the log file the process holds open |
+| Claude Code | 2.1.318 | `~/.claude/projects/*/<session>.jsonl` |
+| Codex | 0.166.0 | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` |
+| pi | 1.4.0 | `~/.pi/agent/sessions/<cwd>/*.jsonl` |
+| agy (Antigravity CLI) | 1.5.0 | `~/.gemini/antigravity-cli/brain/<id>/.system_generated/logs/transcript.jsonl` |
 
-Any other pane, such as a shell, shows its scrollback (`rex capture --unwrap`), with soft-wrapped lines joined so copied text has no stray line breaks.
+Agents are recognized by the pane's foreground process (`claude`, `codex`, `agy`, and `node` started as `pi`). Any other program gets the scrollback view.
 
-The transcript renders as Markdown: your messages and the agent's replies stay open, while tool calls, tool results and thinking start folded.
+## How to install
 
-| Key | Action |
-|---|---|
-| `Cmd+Shift+C` | Open the history of the focused pane |
-| `zR` / `zM` / `za` | Open all / close all / toggle folds |
-| `v` … `Enter` | Copy the selection to the clipboard and close |
-| `q` | Close |
-
-Everything else is your Neovim: search, motions, `y`, your plugins.
-
-## Requirements
-
-- macOS. Tested with Rex server API revision 10 and Neovim 0.12.6. Linux and other versions have not been tested.
-- `nvim` on your login shell's `PATH`, or set the `nvim` option.
-- `lsof`, which macOS ships, for agy.
-
-Agent versions tested: Claude Code 2.1.318, Codex 0.166.0, pi 1.4.0, agy 1.5.0.
-
-## Install
-
-With Homebrew:
+Requirements: macOS, Rex (tested with server API revision 10), Neovim 0.12 (tested with 0.12.6). agy support also uses `lsof`, which macOS ships.
 
 ```sh
 brew install est7/tap/rex-history
 ```
 
-Then add the line `brew info rex-history` prints to your Rex `init.lua` (`~/.config/rex/init.lua` by default) and reload. On Apple Silicon it is:
+Add the line that `brew info rex-history` prints to your Rex config (`~/.config/rex/init.lua` by default). On Apple Silicon it is:
 
 ```lua
 dofile("/opt/homebrew/opt/rex-history/share/rex-history/init.lua").setup()
 ```
 
+Then check and reload the config:
+
 ```sh
 rex config check && rex config reload
 ```
 
-Without Homebrew, clone this repository anywhere and `dofile` its `init.lua` by absolute path. Keep `init.lua`, `view.lua` and `transcripts.lua` together; they find each other relative to their own location.
+Without Homebrew: clone this repository and `dofile` its `init.lua` by absolute path. Keep `init.lua`, `view.lua` and `transcripts.lua` together, because they find each other relative to their own location.
 
-## Configuration
+To upgrade, run `brew upgrade rex-history`, then `rex config reload`. To uninstall, remove the `dofile` line, reload, then `brew uninstall rex-history`.
 
-All options are optional. These are the defaults:
+## How to use
+
+1. Focus a pane and press `Cmd+Shift+C`. You can also pick **History View** from the command palette, or run `rex do history_view`.
+2. Read and search it as you would any Neovim buffer. The cursor starts at the end, which is the latest output.
+3. Copy what you need, then close.
+
+| Key | Action |
+|---|---|
+| `za` / `zR` / `zM` | Toggle the fold under the cursor / open all / close all |
+| `/` `n` `N`, `gg` `G`, … | Search and move as usual |
+| `v` / `V`, then `Enter` | Copy the selection to the system clipboard and close |
+| `y` | Yank as usual (to the system clipboard if your Neovim uses `clipboard=unnamedplus`) and keep the view open |
+| `q` | Close; focus returns to the pane you came from |
+
+## How to configure
+
+Every option is optional. These are the defaults:
 
 ```lua
 dofile(".../rex-history/init.lua").setup({
   key = "cmd+shift+c",                -- Rex shortcut; false to bind "history_view" yourself
   nvim = "nvim",                      -- command or absolute path
-  bounds = { 0.05, 0.05, 0.9, 0.9 },  -- floating layer: x, y, width, height
+  bounds = { 0.05, 0.05, 0.9, 0.9 },  -- floating layer: x, y, width, height (fractions of the window)
 })
 ```
 
-`setup` registers the `history_view` action, which is also in the command palette and runs with `rex do history_view`.
+The agents' own environment variables are respected: `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `PI_CODING_AGENT_DIR`.
 
-The layer starts Neovim through your login shell's environment rather than the Rex server's, so plugins that shell out (input-method switchers, `rg`, …) find their tools.
+## How it works
+
+```
+Cmd+Shift+C
+  └─ init.lua (runs in Rex)       reads the pane's foreground process (pid, name, argv0, cwd) and title,
+                                  opens a floating layer: nvim -c "dofile(view.lua)"
+       └─ view.lua (runs in nvim) agent pane? → transcripts.lua: resolve the file, render Markdown
+                                  otherwise   → rex capture --unwrap
+                                  fills a read-only buffer, sets folds and keys
+```
+
+**Finding the transcript.** `transcripts.lua` maps a pane to the agent's transcript file:
+
+| Agent | How the pane is matched to its session |
+|---|---|
+| Claude Code | `~/.claude/sessions/<pid>.json` names the session ID |
+| Codex | the thread ID in the pane title, if your Codex terminal title includes it; otherwise the newest rollout whose `session_meta.cwd` matches the pane |
+| pi | the session name in the pane title; otherwise the newest session file for the pane's cwd |
+| agy | the conversation ID in the log file the process holds open, among the `brain/<id>` directories it holds open (via `lsof`) |
+
+If no transcript is found, the view falls back to the scrollback and says why.
+
+**Rendering.** Each agent has a small renderer that turns its records into Markdown. Harness context is left out, such as system prompts, `AGENTS.md` injections and `<system-reminder>` blocks. For pi, which stores conversations as a tree, only the current branch is shown. Code fences are made longer than any backtick run inside them, so Markdown in tool output cannot break the layout. Records of a kind the renderer does not know show up as folded `### ? <kind>` JSON, so new formats degrade rather than vanish.
+
+**Performance.** The buffer uses a private filetype (`rexhistory`) with Vim's regex Markdown syntax, not `filetype=markdown`. With a full LazyVim Markdown setup (treesitter, render-markdown, ftplugins), a 20,000-line transcript took over a minute to open. This way a 170,000-line transcript (a 206 MB session file) opens in about a second, and searching or jumping through it stays instant.
+
+**Environment.** The layer starts Neovim through your login shell's environment rather than the Rex server's, so plugins that run other programs (input-method switchers, `rg`, …) can find them on `PATH`.
 
 ## Limitations
 
-- The transcript formats are private to each agent and change between releases. Records rex-history does not recognize show up as folded `### ? <kind>` JSON sections instead of failing, but a format change can still hide content until rex-history is updated.
-- The view is a snapshot taken when it opens.
+- Transcript formats are private to each agent and change between releases. A format change can hide content until rex-history is updated.
 - agy truncates very large fields in its own transcript, so some tool output is incomplete there.
 - Claude Code subagent (sidechain) records are not shown.
-- The buffer uses a private filetype with Vim's regex Markdown syntax, not `filetype=markdown`. With a full LazyVim Markdown setup (treesitter, render-markdown, ftplugins), a 20,000-line transcript took over a minute to open; this way a 170,000-line one opens in about a second.
+- Only macOS has been tested.
 
-## Tests
+## How to test
 
 ```sh
-nvim --headless -u NONE -i NONE -l tests/run.lua   # unit: rendering and resolution, synthetic fixtures
+nvim --headless -u NONE -i NONE -l tests/run.lua   # unit tests: rendering and resolution on synthetic fixtures
 tests/integration.sh                               # needs a running local Rex server
 ```
 
-The integration test creates and kills its own session; it does not select it in the app or reload your config.
-
-## Uninstall
-
-Remove the `dofile(...).setup()` line from your Rex `init.lua`, reload the config, then `brew uninstall rex-history` (or delete the checkout).
+The integration test creates and kills its own Rex session. It does not select that session in the app or reload your config. The fixtures are synthetic: never add real transcripts, because they contain private conversations.
 
 ## License
 
