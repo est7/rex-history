@@ -1,0 +1,37 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    # macOS, like the platform README.md lists as tested.
+    runs-on: macos-latest
+    env:
+      # Keep in step with the Neovim version README.md lists as tested.
+      NVIM_VERSION: v0.12.6
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Neovim ${{ env.NVIM_VERSION }}
+        # Release assets are named nvim-macos-arm64 / nvim-macos-x86_64.
+        run: |
+          arch=$(uname -m)
+          curl -fsSL -o "$RUNNER_TEMP/nvim.tar.gz" \
+            "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-macos-${arch}.tar.gz"
+          tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nvim-macos-${arch}/bin" >> "$GITHUB_PATH"
+
+      - name: Check tool versions
+        run: |
+          nvim --version | head -n 1 | grep -Fx "NVIM ${NVIM_VERSION}"
+          command -v lsof
+
+      # nvim -l exits non-zero when a check fails (os.exit(1)) or the script
+      # raises, which fails this step and the job.
+      - name: Unit tests
+        run: nvim --headless -u NONE -i NONE -l tests/run.lua
