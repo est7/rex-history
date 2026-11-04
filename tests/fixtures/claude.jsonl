@@ -1,0 +1,11 @@
+{"type": "permission-mode", "permissionMode": "default"}
+{"type": "user", "isMeta": true, "message": {"role": "user", "content": "META-HIDDEN"}, "timestamp": "2026-01-01T10:00:00Z"}
+{"type": "user", "message": {"role": "user", "content": "List the files <system-reminder>REMINDER-HIDDEN</system-reminder>"}, "timestamp": "2026-01-01T10:00:01Z"}
+{"type": "assistant", "message": {"id": "m1", "role": "assistant", "content": [{"type": "thinking", "thinking": "THINK-CLAUDE"}]}, "timestamp": "2026-01-01T10:00:02Z"}
+{"type": "assistant", "message": {"id": "m1", "role": "assistant", "content": [{"type": "text", "text": "Listing them now."}]}, "timestamp": "2026-01-01T10:00:02Z"}
+{"type": "assistant", "message": {"id": "m1", "role": "assistant", "content": [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "ls -la", "description": "list"}}]}, "timestamp": "2026-01-01T10:00:03Z"}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "README.md\n```nested fence```"}]}, "timestamp": "2026-01-01T10:00:04Z"}
+{"type": "assistant", "isSidechain": true, "message": {"role": "assistant", "content": [{"type": "text", "text": "SIDECHAIN-HIDDEN"}]}}
+{"type": "system", "subtype": "compact_boundary"}
+{"type": "assistant", "message": {"id": "m2", "role": "assistant", "content": [{"type": "mystery_block", "x": 1}]}, "timestamp": "2026-01-01T10:00:05Z"}
+{"type": "assistant", "message": {"id": "m3", "role": "assistant", "content": [{"type": "text", "text": "Done: claude-final"}]}, "timestamp": "2026-01-01T10:00:06Z"}

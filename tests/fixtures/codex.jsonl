@@ -1,0 +1,9 @@
+{"timestamp": "2026-01-01T10:00:00Z", "type": "session_meta", "payload": {"id": "0000aaaa-1111-2222-3333-444455556666", "cwd": "/work/proj"}}
+{"timestamp": "2026-01-01T10:00:00Z", "type": "response_item", "payload": {"type": "message", "role": "developer", "content": [{"type": "input_text", "text": "DEVELOPER-HIDDEN"}]}}
+{"timestamp": "2026-01-01T10:00:00Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "# AGENTS.md instructions HIDDEN"}], "internal_chat_message_metadata_passthrough": {"content_item_kinds": ["agents_md.instructions"]}}}
+{"timestamp": "2026-01-01T10:00:01Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Run the tests"}], "internal_chat_message_metadata_passthrough": {"content_item_kinds": ["user.text"]}}}
+{"timestamp": "2026-01-01T10:00:02Z", "type": "response_item", "payload": {"type": "reasoning", "summary": [{"type": "summary_text", "text": "THINK-CODEX"}]}}
+{"timestamp": "2026-01-01T10:00:03Z", "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"make test\"}", "call_id": "c1"}}
+{"timestamp": "2026-01-01T10:00:04Z", "type": "response_item", "payload": {"type": "function_call_output", "call_id": "c1", "output": "ok 12 tests"}}
+{"timestamp": "2026-01-01T10:00:04Z", "type": "event_msg", "payload": {"type": "token_count"}}
+{"timestamp": "2026-01-01T10:00:05Z", "type": "response_item", "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "All green: codex-final"}]}}
