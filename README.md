@@ -103,7 +103,7 @@ Cmd+Shift+C
 
 If no transcript is found, the view falls back to the scrollback and says why.
 
-**Rendering.** Each agent has a small renderer that turns its records into Markdown. Harness context is left out, such as system prompts, `AGENTS.md` injections and `<system-reminder>` blocks. For pi, which stores conversations as a tree, only the current branch is shown. Code fences are made longer than any backtick run inside them, so Markdown in tool output cannot break the layout. Records of a kind the renderer does not know show up as folded `### ? <kind>` JSON, so new formats degrade rather than vanish.
+**Rendering.** Each agent has a small renderer that turns its records into Markdown. Harness context is left out, such as system prompts, `AGENTS.md` injections and `<system-reminder>` blocks. For pi, which stores conversations as a tree, only the current branch is shown. For agy, fields it shortened in `transcript.jsonl` (listed in `truncated_fields`) are filled in from `transcript_full.jsonl` beside it; when that file or the matching record is missing, the shortened text is shown with agy's `<truncated N bytes>` marker. Code fences are made longer than any backtick run inside them, so Markdown in tool output cannot break the layout. Records of a kind the renderer does not know show up as folded `### ? <kind>` JSON, so new formats degrade rather than vanish.
 
 **Performance.** The buffer uses a private filetype (`rexhistory`) with Vim's regex Markdown syntax, not `filetype=markdown`. With a full LazyVim Markdown setup (treesitter, render-markdown, ftplugins), a 20,000-line transcript took over a minute to open. This way a 170,000-line transcript (a 206 MB session file) opens in about a second, and searching or jumping through it stays instant.
 
@@ -112,7 +112,6 @@ If no transcript is found, the view falls back to the scrollback and says why.
 ## Limitations
 
 - Transcript formats are private to each agent and change between releases. A format change can hide content until rex-history is updated.
-- agy truncates very large fields in its own transcript, so some tool output is incomplete there.
 - Claude Code subagent (sidechain) records are not shown.
 - Only macOS has been tested.
 
