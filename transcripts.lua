@@ -421,11 +421,11 @@ end
 
 -- agy writes each tool argument JSON-encoded into transcript.jsonl ("\"ls\"",
 -- "500"); transcript_full.jsonl holds plain values. A truncated argument is
--- an unterminated JSON string and stays as written.
+-- cut at its end, an unterminated JSON string, and stays as written.
 local function agy_decode_args(records)
   for _, d in ipairs(records) do
     for _, call in ipairs(type(d.tool_calls) == "table" and d.tool_calls or {}) do
-      for key, value in pairs(type(call.args) == "table" and call.args or {}) do
+      for key, value in pairs(type(call) == "table" and type(call.args) == "table" and call.args or {}) do
         if type(value) == "string" then
           local ok, plain = pcall(vim.json.decode, value, { luanil = { object = true, array = true } })
           if ok and plain ~= nil and plain ~= vim.NIL then call.args[key] = plain end
@@ -435,16 +435,22 @@ local function agy_decode_args(records)
   end
 end
 
--- agy elides the middle of a large field in transcript.jsonl and lists it in
--- truncated_fields; transcript_full.jsonl beside it keeps the whole record.
+-- agy shortens a large field in transcript.jsonl (text loses its middle, a
+-- tool argument its end) and lists it in truncated_fields;
+-- transcript_full.jsonl beside it keeps the whole record.
 -- step_index can repeat, in the same order in both files, so the nth record
 -- with a step_index matches the nth one there. The full file is read only
 -- when something is truncated; without it the truncated text stays.
+local function step_of(record)
+  local step = record.step_index
+  if type(step) == "number" or type(step) == "string" then return step end
+end
+
 local function agy_backfill(records, path)
   local wanted, seen = {}, {}
   for _, d in ipairs(records) do
-    local step = d.step_index
-    if step ~= nil then
+    local step = step_of(d)
+    if step then
       seen[step] = (seen[step] or 0) + 1
       if type(d.truncated_fields) == "table" and #d.truncated_fields > 0 then
         wanted[step .. "#" .. seen[step]] = d
@@ -458,8 +464,8 @@ local function agy_backfill(records, path)
   local count = {}
   for line in file:lines() do
     local full = decode(line)
-    local step = full and full.step_index
-    if step ~= nil then
+    local step = full and step_of(full)
+    if step then
       count[step] = (count[step] or 0) + 1
       local d = wanted[step .. "#" .. count[step]]
       if d and d.type == full.type then
