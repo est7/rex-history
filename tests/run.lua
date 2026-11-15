@@ -137,6 +137,51 @@ do -- agy: the process's open log names the conversation among its open brain di
   for _, fd in ipairs(fds) do vim.uv.fs_close(fd) end
 end
 
+-- agy: transcript_full.jsonl backfill ----------------------------------------------
+
+do -- truncated_fields are filled from the sibling transcript_full.jsonl
+  local logs = tmp .. "/agy-full/logs/"
+  vim.fn.mkdir(logs, "p")
+  vim.uv.fs_copyfile(fixtures .. "agy.jsonl", logs .. "transcript.jsonl")
+  vim.uv.fs_copyfile(fixtures .. "agy_full.jsonl", logs .. "transcript_full.jsonl")
+  -- A record agy is still writing to the full file.
+  local file = assert(io.open(logs .. "transcript_full.jsonl", "ab"))
+  file:write('{"step_index": 14, "type": "GENERIC", "content": "ORPHAN-HALF')
+  file:close()
+  local doc = T.render("agy", logs .. "transcript.jsonl")
+  local body = table.concat(doc.lines, "\n")
+  check("agy backfills content", body:find("OUT-HEAD OUT-MIDDLE-FULL OUT-TAIL", 1, true) ~= nil)
+  check("agy backfills a repeated step_index in order",
+    body:find("AGAIN-HEAD AGAIN-MIDDLE-FULL AGAIN-TAIL", 1, true) ~= nil
+      and (body:find("OUT-MIDDLE-FULL", 1, true) or 1e9) < (body:find("AGAIN-MIDDLE-FULL", 1, true) or 0))
+  check("agy backfills thinking", body:find("THINK-HEAD THINK-MIDDLE-FULL THINK-TAIL", 1, true) ~= nil)
+  check("agy backfills tool_calls", body:find("```sh\nprintf CMD-HEAD-MIDDLE-FULL-CMD-TAIL\n```", 1, true) ~= nil)
+  check("agy backfill leaves no truncation marker for filled fields",
+    not body:find("<truncated 16 bytes>", 1, true) and not body:find("<truncated 18 bytes>", 1, true)
+      and not body:find("<truncated 13 bytes>", 1, true))
+  check("agy ignores a full record of another type",
+    not body:find("MISMATCH-FULL", 1, true) and body:find("MISMATCH-HEAD\n<truncated 21 bytes>\nMISMATCH-TAIL", 1, true) ~= nil)
+  check("agy keeps a truncated record missing from the full file",
+    body:find("ORPHAN-HEAD\n<truncated 19 bytes>\nORPHAN-TAIL", 1, true) ~= nil and not body:find("ORPHAN-HALF", 1, true))
+  check("agy backfill keeps three turns", #doc.turns == 3, "got " .. #doc.turns)
+
+  -- Without transcript_full.jsonl the truncated text stays, marker included.
+  os.remove(logs .. "transcript_full.jsonl")
+  local ok, fallback = pcall(T.render, "agy", logs .. "transcript.jsonl")
+  local text = ok and table.concat(fallback.lines, "\n") or ""
+  check("agy without full file renders", ok, tostring(fallback))
+  check("agy without full file keeps truncated content",
+    text:find("OUT-HEAD\n<truncated 16 bytes>\nOUT-TAIL", 1, true) ~= nil and not text:find("OUT-MIDDLE-FULL", 1, true))
+  check("agy without full file keeps truncated thinking",
+    text:find("THINK-HEAD\n<truncated 18 bytes>\nTHINK-TAIL", 1, true) ~= nil)
+  check("agy without full file keeps the truncated command", text:find("CMD-HEAD\n<truncated 13 bytes>\nCMD-TAIL", 1, true) ~= nil)
+end
+
+do -- agy run_command: CommandLine is the shell command, stored JSON-encoded
+  local _, body = doc_of("agy")
+  check("agy CommandLine shown as sh", body:find('```sh\nrg -n "TODO" src\n```', 1, true) ~= nil)
+end
+
 -- Turn navigation ------------------------------------------------------------------
 
 for _, agent in ipairs({ "claude", "codex", "pi", "agy" }) do

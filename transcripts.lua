@@ -225,6 +225,7 @@ local function tool_input(input)
     return input.command, "sh"
   end
   if type(input) == "table" and type(input.cmd) == "string" then return input.cmd, "sh" end
+  if type(input) == "table" and type(input.CommandLine) == "string" then return input.CommandLine, "sh" end
   return json(input), "json"
 end
 
@@ -418,6 +419,67 @@ function render.agy(records, w)
   end
 end
 
+-- agy writes each tool argument JSON-encoded into transcript.jsonl ("\"ls\"",
+-- "500"); transcript_full.jsonl holds plain values. A truncated argument is
+-- an unterminated JSON string and stays as written.
+local function agy_decode_args(records)
+  for _, d in ipairs(records) do
+    for _, call in ipairs(type(d.tool_calls) == "table" and d.tool_calls or {}) do
+      for key, value in pairs(type(call.args) == "table" and call.args or {}) do
+        if type(value) == "string" then
+          local ok, plain = pcall(vim.json.decode, value, { luanil = { object = true, array = true } })
+          if ok and plain ~= nil and plain ~= vim.NIL then call.args[key] = plain end
+        end
+      end
+    end
+  end
+end
+
+-- agy elides the middle of a large field in transcript.jsonl and lists it in
+-- truncated_fields; transcript_full.jsonl beside it keeps the whole record.
+-- step_index can repeat, in the same order in both files, so the nth record
+-- with a step_index matches the nth one there. The full file is read only
+-- when something is truncated; without it the truncated text stays.
+local function agy_backfill(records, path)
+  local wanted, seen = {}, {}
+  for _, d in ipairs(records) do
+    local step = d.step_index
+    if step ~= nil then
+      seen[step] = (seen[step] or 0) + 1
+      if type(d.truncated_fields) == "table" and #d.truncated_fields > 0 then
+        wanted[step .. "#" .. seen[step]] = d
+      end
+    end
+  end
+  if next(wanted) == nil then return end
+  local dir = path:match("^(.*/)transcript%.jsonl$")
+  local file = dir and io.open(dir .. "transcript_full.jsonl", "rb")
+  if not file then return end
+  local count = {}
+  for line in file:lines() do
+    local full = decode(line)
+    local step = full and full.step_index
+    if step ~= nil then
+      count[step] = (count[step] or 0) + 1
+      local d = wanted[step .. "#" .. count[step]]
+      if d and d.type == full.type then
+        for _, field in ipairs(d.truncated_fields) do
+          if full[field] ~= nil and type(full[field]) == type(d[field]) then d[field] = full[field] end
+        end
+      end
+    end
+  end
+  file:close()
+end
+
+-- Per-agent fixes applied to the records before rendering.
+local prepare = {}
+
+function prepare.agy(records, path)
+  agy_decode_args(records)
+  agy_backfill(records, path)
+end
+
 -- Returns { lines, folds, turns } for the transcript at path.
 function M.render(agent, path)
   local records = {}
@@ -425,6 +487,7 @@ function M.render(agent, path)
     local record = decode(line)
     if record then records[#records + 1] = record end
   end
+  if prepare[agent] then prepare[agent](records, path) end
   local w = writer()
   render[agent](records, w)
   return { lines = w.lines, folds = w.folds, turns = w.turns }
